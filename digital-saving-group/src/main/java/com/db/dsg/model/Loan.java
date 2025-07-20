@@ -2,6 +2,7 @@ package com.db.dsg.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -12,6 +13,7 @@ import java.time.LocalDate;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@Builder
 public class Loan {
     @Id
     @GeneratedValue
@@ -39,4 +41,12 @@ public class Loan {
     private LocalDate repaymentDate;
 
     private LocalDate createdDate;
+
+    private LocalDate dueDate;
+
+    private Integer tenureMonths;
+
+    private BigDecimal monthlyEmi;
+
+    private BigDecimal monthlyIncome;
 }

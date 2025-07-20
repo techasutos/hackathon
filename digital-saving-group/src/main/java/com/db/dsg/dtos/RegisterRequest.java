@@ -14,7 +14,7 @@ import java.time.LocalDate;
 public class RegisterRequest {
     private String username;
     private String password;
-    private Role role; // ✅ single role at signup
+    private String roleName;
     private String fullName;
     private String phone;
     private String email;

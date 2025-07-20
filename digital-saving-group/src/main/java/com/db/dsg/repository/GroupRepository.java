@@ -9,4 +9,10 @@ public interface GroupRepository extends JpaRepository<Group, Long> {
     Optional<Group> findByName(String name);
 
     boolean existsByName(String name);
+
+    boolean existsByProjectTagIgnoreCase(String s);
+
+    Optional<Group> findByProjectTagIgnoreCase(String projectTag);
+
+    Optional<Group> findByNameIgnoreCase(String groupName);
 }

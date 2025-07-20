@@ -29,7 +29,10 @@ public class LoanApplicationController {
             @RequestBody @Valid LoanRequestDto request,
             @AuthenticationPrincipal MemberUser memberUser
     ) {
-        LoanDto loanDto = loanService.applyLoan(memberUser.getMember(), request.getAmount(), request.getPurpose());
+        LoanDto loanDto = loanService.applyLoan(
+                memberUser.getMember(),
+                request
+        );
         return ResponseEntity.ok(loanDto);
     }
 

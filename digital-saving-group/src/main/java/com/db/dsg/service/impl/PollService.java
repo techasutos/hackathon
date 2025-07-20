@@ -39,6 +39,17 @@ public class PollService {
                 .closed(false)
                 .build();
 
+        // map PollOptions from DTO and link to Poll
+        List<PollOption> options = dto.getOptions().stream()
+                .map(opt -> PollOption.builder()
+                        .value(opt.getValue())
+                        .label(opt.getLabel())
+                        .poll(poll)
+                        .build())
+                .collect(Collectors.toList());
+
+        poll.setOptions(options);
+
         Poll saved = pollRepo.save(poll);
         return toDto(saved);
     }
@@ -89,6 +100,7 @@ public class PollService {
         PollDto dto = mapper.map(poll, PollDto.class);
         dto.setGroupId(poll.getGroup().getId());
         dto.setGroupName(poll.getGroup().getName());
+        // optional: map options as well
         return dto;
     }
 }

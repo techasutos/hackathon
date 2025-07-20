@@ -26,4 +26,8 @@ public class LoanDto {
     private Long memberId;
     private LocalDate createdDate;
     private Long groupId;
+    private BigDecimal monthlyIncome;
+    private Integer tenureMonths;
+    private BigDecimal monthlyEmi;
+
 }

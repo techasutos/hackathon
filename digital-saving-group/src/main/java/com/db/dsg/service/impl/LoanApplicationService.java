@@ -2,9 +2,11 @@ package com.db.dsg.service.impl;
 
 import com.db.dsg.dtos.LoanAuditLogDto;
 import com.db.dsg.dtos.LoanDto;
+import com.db.dsg.dtos.LoanRequestDto;
 import com.db.dsg.model.*;
 import com.db.dsg.repository.LoanApplicationRepository;
 import com.db.dsg.repository.LoanAuditLogRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.security.access.AccessDeniedException;
@@ -26,23 +28,36 @@ public class LoanApplicationService {
     private final ModelMapper mapper;
 
     // Apply loan
-    public LoanDto applyLoan(Member member, BigDecimal amount, String purpose) {
-        Loan loan = new Loan();
-        loan.setMember(member);
-        loan.setAmount(amount);
-        loan.setRemainingBalance(amount);
-        loan.setStatus(LoanStatus.PENDING);
-        loan.setPurpose(purpose);
-        loan.setApplicationDate(LocalDate.now());
+    public LoanDto applyLoan(Member member, LoanRequestDto request) {
+        Loan loan = Loan.builder()
+                .member(member)
+                .amount(request.getAmount())
+                .remainingBalance(request.getAmount())
+                .status(LoanStatus.PENDING)
+                .purpose(request.getPurpose())
+                .applicationDate(LocalDate.now())
+                .createdDate(LocalDate.now())
+                .tenureMonths(request.getTenureMonths())
+                .monthlyEmi(request.getMonthlyEmi())
+                .monthlyIncome(request.getMonthlyIncome())
+                .build();
 
         Loan saved = loanRepo.save(loan);
 
-        auditLogRepo.save(new LoanAuditLog(null, saved, LoanStatus.PENDING,
-                member.getName(), LocalDateTime.now(), "Loan applied by " + member.getName()));
+        auditLogRepo.save(
+                LoanAuditLog.builder()
+                        .loan(saved)
+                        .status(LoanStatus.PENDING)
+                        .performedBy(member.getName())
+                        .timestamp(LocalDateTime.now())
+                        .description("Loan applied by " + member.getName())
+                        .build()
+        );
 
         return toDto(saved);
     }
 
+    @Transactional
     public LoanDto approveLoan(Long loanId, MemberUser approver) {
         Loan loan = getLoanOrThrow(loanId);
 
@@ -61,6 +76,7 @@ public class LoanApplicationService {
         return toDto(updated);
     }
 
+    @Transactional
     public LoanDto disburseLoan(Long loanId, MemberUser treasurer) {
         Loan loan = getLoanOrThrow(loanId);
 
@@ -87,6 +103,7 @@ public class LoanApplicationService {
         return toDto(updated);
     }
 
+    @Transactional
     public LoanDto rejectLoan(Long loanId, MemberUser user) {
         Loan loan = getLoanOrThrow(loanId);
 
@@ -135,7 +152,7 @@ public class LoanApplicationService {
     }
 
     public List<LoanDto> getLoansByMember(Member member) {
-        return loanRepo.findByMember(member).stream().map(this::toDto).toList();
+        return loanRepo.findByIdWithMember(member.getId()).stream().map(this::toDto).toList();
     }
 
     public List<LoanDto> getLoansByGroupId(Long groupId) {
@@ -190,6 +207,9 @@ public class LoanApplicationService {
                 .repaymentDate(loan.getRepaymentDate())
                 .memberId(loan.getMember().getId())
                 .memberName(loan.getMember().getName())
+                .monthlyIncome(loan.getMonthlyIncome())
+                .monthlyEmi(loan.getMonthlyEmi())
+                .tenureMonths(loan.getTenureMonths())
                 .build();
     }
 

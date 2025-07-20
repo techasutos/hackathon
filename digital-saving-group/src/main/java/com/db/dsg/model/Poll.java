@@ -7,6 +7,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Data
@@ -26,9 +28,12 @@ public class Poll {
 
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    private LocalDateTime deadline; // ✅ NEW FIELD
+    private LocalDateTime deadline;
 
     private boolean closed = false;
+
+    @OneToMany(mappedBy = "poll", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PollOption> options = new ArrayList<>();
 
     public boolean isExpired() {
         return deadline != null && deadline.isBefore(LocalDateTime.now());

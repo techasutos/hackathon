@@ -7,4 +7,6 @@ import java.util.Optional;
 
 public interface GroupFundRepository extends JpaRepository<GroupFund, Long> {
     Optional<GroupFund> findByGroup_Id(Long groupId);
+
+    boolean existsByGroup_Id(Long id);
 }

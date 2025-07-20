@@ -19,4 +19,6 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     boolean existsByUserId(Long userId);
 
     boolean existsByNameIgnoreCaseAndGroup_Id(String name, Long groupId);
+
+    List<Member> findAllByGroup_Id(Long id);
 }
