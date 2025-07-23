@@ -18,6 +18,8 @@ public class LoanRequestDto {
 
     private String purpose;
 
+    private String purposeDescription;
+
     @NotNull
     private Integer tenureMonths;
 

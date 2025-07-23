@@ -26,6 +26,7 @@ public class LoanSeeder {
     private final MemberUserRepository userRepo;
     private final LoanApplicationRepository loanRepo;
 
+
     public void seedLoans() {
         log.info("📦 Seeding loans for multiple members...");
 
@@ -37,22 +38,63 @@ public class LoanSeeder {
         for (String username : members) {
             MemberUser memberUser = getUserByRole(username, "MEMBER");
 
-            // Loan variations
-            createLoan(memberUser, "Pending Loan", BigDecimal.valueOf(1000), 6, BigDecimal.valueOf(12000));
+            // PENDING
+            createLoan(
+                    memberUser,
+                    "Medical Emergency",
+                    "Urgent surgery for family member",
+                    BigDecimal.valueOf(1000),
+                    6,
+                    BigDecimal.valueOf(12000)
+            );
 
-            var approved = createLoan(memberUser, "Approved Loan", BigDecimal.valueOf(1200), 6, BigDecimal.valueOf(12000));
+            // APPROVED
+            var approved = createLoan(
+                    memberUser,
+                    "Home Repairs",
+                    "Fixing roof leakage",
+                    BigDecimal.valueOf(1200),
+                    6,
+                    BigDecimal.valueOf(12000)
+            );
             loanService.approveLoan(approved.getId(), president);
 
-            var rejected = createLoan(memberUser, "Rejected Loan", BigDecimal.valueOf(1100), 8, BigDecimal.valueOf(15000));
+            // REJECTED
+            var rejected = createLoan(
+                    memberUser,
+                    "Agricultural Equipment",
+                    "Buying electric water pump",
+                    BigDecimal.valueOf(1100),
+                    8,
+                    BigDecimal.valueOf(15000)
+            );
             loanService.rejectLoan(rejected.getId(), president);
 
-            var disbursed = createLoan(memberUser, "Disbursed Loan", BigDecimal.valueOf(2000), 10, BigDecimal.valueOf(18000));
+            // DISBURSED
+            var disbursed = createLoan(
+                    memberUser,
+                    "Education Fee",
+                    "College fee for daughter",
+                    BigDecimal.valueOf(2000),
+                    10,
+                    BigDecimal.valueOf(18000)
+            );
             loanService.approveLoan(disbursed.getId(), president);
+            loanService.requestDisbursement(disbursed.getId(), memberUser); // NEW
             loanService.disburseLoan(disbursed.getId(), treasurer);
             updateDueDate(disbursed.getId(), LocalDate.now().plusDays(20));
 
-            var overdue = createLoan(memberUser, "Overdue Loan", BigDecimal.valueOf(2200), 10, BigDecimal.valueOf(18000));
+            // OVERDUE
+            var overdue = createLoan(
+                    memberUser,
+                    "Small Business Setup",
+                    "Open tailoring shop",
+                    BigDecimal.valueOf(2200),
+                    10,
+                    BigDecimal.valueOf(18000)
+            );
             loanService.approveLoan(overdue.getId(), president);
+            loanService.requestDisbursement(overdue.getId(), memberUser); // NEW
             loanService.disburseLoan(overdue.getId(), treasurer);
             updateDueDate(overdue.getId(), LocalDate.now().minusDays(30));
         }
@@ -74,11 +116,13 @@ public class LoanSeeder {
         loanRepo.save(loan);
     }
 
-    private LoanDto createLoan(MemberUser memberUser, String purpose, BigDecimal amount, int tenureMonths, BigDecimal monthlyIncome) {
+    private LoanDto createLoan(MemberUser memberUser, String purpose, String description,
+                               BigDecimal amount, int tenureMonths, BigDecimal monthlyIncome) {
         BigDecimal emi = amount.divide(BigDecimal.valueOf(tenureMonths), 2, RoundingMode.HALF_UP);
         LoanRequestDto request = LoanRequestDto.builder()
                 .amount(amount)
                 .purpose(purpose)
+                .purposeDescription(description)
                 .tenureMonths(tenureMonths)
                 .monthlyIncome(monthlyIncome)
                 .monthlyEmi(emi)

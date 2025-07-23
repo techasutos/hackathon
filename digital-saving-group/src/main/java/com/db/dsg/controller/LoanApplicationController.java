@@ -18,7 +18,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/loans")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('MEMBER', 'PRESIDENT', 'TREASURER', 'SUPER_ADMIN')")
 public class LoanApplicationController {
 
     private final LoanApplicationService loanService;
@@ -71,6 +70,24 @@ public class LoanApplicationController {
             @AuthenticationPrincipal MemberUser memberUser
     ) {
         return ResponseEntity.ok(loanService.repayAndUpdateFund(loanId, request.getAmount(), memberUser));
+    }
+
+    @PostMapping("/{loanId}/request-disbursement")
+    @PreAuthorize("hasRole('MEMBER')")
+    public ResponseEntity<LoanDto> requestDisbursement(
+            @PathVariable Long loanId,
+            @AuthenticationPrincipal MemberUser user
+    ) {
+        return ResponseEntity.ok(loanService.requestDisbursement(loanId, user));
+    }
+
+    @PostMapping("/{loanId}/cancel")
+    @PreAuthorize("hasRole('MEMBER')")
+    public ResponseEntity<LoanDto> cancelLoan(
+            @PathVariable Long loanId,
+            @AuthenticationPrincipal MemberUser user
+    ) {
+        return ResponseEntity.ok(loanService.cancelLoan(loanId, user));
     }
 
     @GetMapping("/my")

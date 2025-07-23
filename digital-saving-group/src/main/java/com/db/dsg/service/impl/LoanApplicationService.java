@@ -27,7 +27,6 @@ public class LoanApplicationService {
     private final GroupFundService groupFundService;
     private final ModelMapper mapper;
 
-    // Apply loan
     public LoanDto applyLoan(Member member, LoanRequestDto request) {
         Loan loan = Loan.builder()
                 .member(member)
@@ -35,6 +34,7 @@ public class LoanApplicationService {
                 .remainingBalance(request.getAmount())
                 .status(LoanStatus.PENDING)
                 .purpose(request.getPurpose())
+                .purposeDescription(request.getPurposeDescription())
                 .applicationDate(LocalDate.now())
                 .createdDate(LocalDate.now())
                 .tenureMonths(request.getTenureMonths())
@@ -61,17 +61,54 @@ public class LoanApplicationService {
     public LoanDto approveLoan(Long loanId, MemberUser approver) {
         Loan loan = getLoanOrThrow(loanId);
 
-        if (loan.getStatus() != LoanStatus.PENDING) {
+        if (loan.getStatus() != LoanStatus.PENDING)
             throw new IllegalStateException("Only PENDING loans can be approved");
-        }
 
         loan.setStatus(LoanStatus.APPROVED);
         loan.setApprovalDate(LocalDate.now());
 
         Loan updated = loanRepo.save(loan);
 
-        auditLogRepo.save(new LoanAuditLog(null, updated, LoanStatus.APPROVED,
-                approver.getUsername(), LocalDateTime.now(), "Approved by " + approver.getUsername()));
+        auditLogRepo.save(
+                LoanAuditLog.builder()
+                        .loan(updated)
+                        .status(LoanStatus.APPROVED)
+                        .performedBy(approver.getUsername())
+                        .timestamp(LocalDateTime.now())
+                        .description("Approved by " + approver.getUsername())
+                        .build()
+        );
+
+        return toDto(updated);
+    }
+
+    /**
+     * ✅ New: Member requests disbursement after loan is approved.
+     */
+    @Transactional
+    public LoanDto requestDisbursement(Long loanId, MemberUser memberUser) {
+        Loan loan = getLoanOrThrow(loanId);
+
+        if (!loan.getMember().getId().equals(memberUser.getMember().getId()))
+            throw new AccessDeniedException("You can only request disbursement for your own loans");
+
+        if (loan.getStatus() != LoanStatus.APPROVED)
+            throw new IllegalStateException("Only APPROVED loans can be requested for disbursement");
+
+        loan.setStatus(LoanStatus.DISBURSE_REQUESTED);
+        loan.setDisbursementRequestDate(LocalDate.now());
+
+        Loan updated = loanRepo.save(loan);
+
+        auditLogRepo.save(
+                LoanAuditLog.builder()
+                        .loan(updated)
+                        .status(LoanStatus.DISBURSE_REQUESTED)
+                        .performedBy(memberUser.getUsername())
+                        .timestamp(LocalDateTime.now())
+                        .description("Disbursement requested by " + memberUser.getUsername())
+                        .build()
+        );
 
         return toDto(updated);
     }
@@ -80,8 +117,8 @@ public class LoanApplicationService {
     public LoanDto disburseLoan(Long loanId, MemberUser treasurer) {
         Loan loan = getLoanOrThrow(loanId);
 
-        if (loan.getStatus() != LoanStatus.APPROVED)
-            throw new IllegalStateException("Only APPROVED loans can be disbursed");
+        if (loan.getStatus() != LoanStatus.DISBURSE_REQUESTED)
+            throw new IllegalStateException("Loan must be DISBURSE_REQUESTED to disburse");
 
         if (!treasurer.hasRole("TREASURER"))
             throw new AccessDeniedException("Only treasurer can disburse loans");
@@ -96,9 +133,15 @@ public class LoanApplicationService {
 
         Loan updated = loanRepo.save(loan);
 
-        auditLogRepo.save(new LoanAuditLog(null, updated, LoanStatus.DISBURSED,
-                treasurer.getUsername(), LocalDateTime.now(),
-                "Disbursed ₹" + amount + " by " + treasurer.getUsername()));
+        auditLogRepo.save(
+                LoanAuditLog.builder()
+                        .loan(updated)
+                        .status(LoanStatus.DISBURSED)
+                        .performedBy(treasurer.getUsername())
+                        .timestamp(LocalDateTime.now())
+                        .description("Disbursed ₹" + amount + " by " + treasurer.getUsername())
+                        .build()
+        );
 
         return toDto(updated);
     }
@@ -107,48 +150,90 @@ public class LoanApplicationService {
     public LoanDto rejectLoan(Long loanId, MemberUser user) {
         Loan loan = getLoanOrThrow(loanId);
 
-        if (loan.getStatus() != LoanStatus.PENDING && loan.getStatus() != LoanStatus.APPROVED)
-            throw new IllegalStateException("Only PENDING or APPROVED loans can be rejected");
+        if (!List.of(LoanStatus.PENDING, LoanStatus.APPROVED, LoanStatus.DISBURSE_REQUESTED)
+                .contains(loan.getStatus()))
+            throw new IllegalStateException("Loan cannot be rejected at this stage");
 
         loan.setStatus(LoanStatus.REJECTED);
+
         Loan updated = loanRepo.save(loan);
 
-        auditLogRepo.save(new LoanAuditLog(null, updated, LoanStatus.REJECTED,
-                user.getUsername(), LocalDateTime.now(), "Rejected by " + user.getUsername()));
+        auditLogRepo.save(
+                LoanAuditLog.builder()
+                        .loan(updated)
+                        .status(LoanStatus.REJECTED)
+                        .performedBy(user.getUsername())
+                        .timestamp(LocalDateTime.now())
+                        .description("Rejected by " + user.getUsername())
+                        .build()
+        );
 
         return toDto(updated);
     }
 
+    @Transactional
+    public LoanDto cancelLoan(Long loanId, MemberUser memberUser) {
+        Loan loan = getLoanOrThrow(loanId);
+
+        if (!loan.getMember().getId().equals(memberUser.getMember().getId()))
+            throw new AccessDeniedException("You can only cancel your own loan");
+
+        if (!List.of(LoanStatus.PENDING, LoanStatus.APPROVED, LoanStatus.DISBURSE_REQUESTED).contains(loan.getStatus()))
+            throw new IllegalStateException("Loan cannot be cancelled in its current status");
+
+        loan.setStatus(LoanStatus.CANCELLED);
+        Loan updated = loanRepo.save(loan);
+
+        auditLogRepo.save(
+                LoanAuditLog.builder()
+                        .loan(updated)
+                        .status(LoanStatus.CANCELLED)
+                        .performedBy(memberUser.getUsername())
+                        .timestamp(LocalDateTime.now())
+                        .description("Loan cancelled by member " + memberUser.getUsername())
+                        .build()
+        );
+
+        return toDto(updated);
+    }
+    @Transactional
     public LoanDto repayAndUpdateFund(Long loanId, BigDecimal repaymentAmount, MemberUser memberUser) {
         Loan loan = getLoanOrThrow(loanId);
-        Member member = memberUser.getMember();
 
-        if (!loan.getMember().getId().equals(member.getId()))
-            throw new AccessDeniedException("This loan does not belong to the current user.");
+        if (!loan.getMember().getId().equals(memberUser.getMember().getId()))
+            throw new AccessDeniedException("Unauthorized loan repayment attempt");
 
         if (loan.getStatus() != LoanStatus.DISBURSED && loan.getStatus() != LoanStatus.REPAID)
-            throw new IllegalStateException("Only DISBURSED loans can be repaid.");
+            throw new IllegalStateException("Only DISBURSED loans can be repaid");
 
         BigDecimal newBalance = loan.getRemainingBalance().subtract(repaymentAmount);
 
         if (newBalance.compareTo(BigDecimal.ZERO) < 0)
-            throw new IllegalArgumentException("Repayment exceeds remaining loan amount.");
+            throw new IllegalArgumentException("Repayment exceeds remaining balance");
 
         loan.setRemainingBalance(newBalance);
+        loan.setEmiPaidCount((loan.getEmiPaidCount() == null ? 1 : loan.getEmiPaidCount() + 1));
+
         if (newBalance.compareTo(BigDecimal.ZERO) == 0) {
             loan.setStatus(LoanStatus.REPAID);
             loan.setRepaymentDate(LocalDate.now());
         }
 
-        Loan updatedLoan = loanRepo.save(loan);
+        Loan updated = loanRepo.save(loan);
 
         groupFundService.addToFund(loan.getMember().getGroup().getId(), repaymentAmount);
 
-        auditLogRepo.save(new LoanAuditLog(null, updatedLoan,
-                loan.getStatus(), memberUser.getUsername(), LocalDateTime.now(),
-                "Repayment of ₹" + repaymentAmount + " by " + memberUser.getUsername()));
+        auditLogRepo.save(
+                LoanAuditLog.builder()
+                        .loan(updated)
+                        .status(loan.getStatus())
+                        .performedBy(memberUser.getUsername())
+                        .timestamp(LocalDateTime.now())
+                        .description("Repayment of ₹" + repaymentAmount + " by " + memberUser.getUsername())
+                        .build()
+        );
 
-        return toDto(updatedLoan);
+        return toDto(updated);
     }
 
     public List<LoanDto> getLoansByMember(Member member) {
@@ -160,10 +245,8 @@ public class LoanApplicationService {
     }
 
     public List<LoanAuditLogDto> getAuditLogs(Long loanId) {
-        return auditLogRepo.findByLoan_IdOrderByTimestampAsc(loanId)
-                .stream()
-                .map(this::toLogDto)
-                .toList();
+        return auditLogRepo.findByLoan_IdOrderByTimestampAsc(loanId).stream()
+                .map(this::toLogDto).toList();
     }
 
     public List<LoanDto> getMonthlyRepayments(Long groupId, YearMonth month) {
@@ -174,24 +257,24 @@ public class LoanApplicationService {
     }
 
     public List<LoanDto> getOverdueLoans(Long groupId) {
-        LocalDate due = LocalDate.now().minusDays(90);
+        LocalDate cutoff = LocalDate.now().minusDays(90);
         return loanRepo.findByMember_Group_IdAndStatusAndDisbursementDateBefore(
-                        groupId, LoanStatus.DISBURSED, due)
-                .stream().map(this::toDto).toList();
+                groupId, LoanStatus.DISBURSED, cutoff).stream().map(this::toDto).toList();
     }
 
     public List<Member> getMembersWithOverdueLoans(Long groupId) {
         return getOverdueLoans(groupId).stream()
-                .map(dto -> loanRepo.findById(dto.getId()).orElse(null)) // Convert DTO back to entity
+                .map(dto -> loanRepo.findById(dto.getId()).orElse(null))
                 .filter(Objects::nonNull)
                 .map(Loan::getMember)
                 .distinct()
                 .toList();
     }
 
-    // --- Helper Methods ---
+    // --- Helper methods ---
     private Loan getLoanOrThrow(Long id) {
-        return loanRepo.findById(id).orElseThrow(() -> new IllegalArgumentException("Loan not found"));
+        return loanRepo.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Loan not found"));
     }
 
     private LoanDto toDto(Loan loan) {
@@ -201,15 +284,16 @@ public class LoanApplicationService {
                 .remainingBalance(loan.getRemainingBalance())
                 .status(loan.getStatus().name())
                 .purpose(loan.getPurpose())
+                .purposeDescription(loan.getPurposeDescription())
                 .applicationDate(loan.getApplicationDate())
                 .approvalDate(loan.getApprovalDate())
                 .disbursementDate(loan.getDisbursementDate())
                 .repaymentDate(loan.getRepaymentDate())
-                .memberId(loan.getMember().getId())
-                .memberName(loan.getMember().getName())
                 .monthlyIncome(loan.getMonthlyIncome())
                 .monthlyEmi(loan.getMonthlyEmi())
                 .tenureMonths(loan.getTenureMonths())
+                .memberId(loan.getMember().getId())
+                .memberName(loan.getMember().getName())
                 .build();
     }
 

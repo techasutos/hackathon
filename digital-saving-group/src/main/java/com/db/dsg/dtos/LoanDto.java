@@ -18,6 +18,7 @@ public class LoanDto {
     private BigDecimal remainingBalance;
     private String status;
     private String purpose;
+    private String purposeDescription;
     private LocalDate applicationDate;
     private LocalDate approvalDate;
     private LocalDate disbursementDate;
