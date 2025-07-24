@@ -2,15 +2,12 @@ package com.db.dsg.controller;
 
 import com.db.dsg.dtos.PollDto;
 import com.db.dsg.dtos.PollRequestDto;
-import com.db.dsg.dtos.VoteDto;
 import com.db.dsg.model.MemberUser;
-import com.db.dsg.model.Poll;
 import com.db.dsg.model.Vote;
 import com.db.dsg.model.VoteOption;
 import com.db.dsg.service.impl.PollService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.modelmapper.ModelMapper;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

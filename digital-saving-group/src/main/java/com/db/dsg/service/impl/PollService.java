@@ -2,11 +2,9 @@ package com.db.dsg.service.impl;
 
 import com.db.dsg.dtos.PollDto;
 import com.db.dsg.dtos.PollRequestDto;
-import com.db.dsg.dtos.VoteDto;
 import com.db.dsg.exception.ResourceNotFoundException;
 import com.db.dsg.model.*;
 import com.db.dsg.repository.GroupRepository;
-import com.db.dsg.repository.MemberRepository;
 import com.db.dsg.repository.PollRepository;
 import com.db.dsg.repository.VoteRepository;
 import lombok.RequiredArgsConstructor;
@@ -14,10 +12,8 @@ import org.modelmapper.ModelMapper;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service

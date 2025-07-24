@@ -74,7 +74,7 @@ public class MemberController {
 
     // ✅ Delete member
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'PRESIDENT')")
     public ResponseEntity<Void> deleteMember(@PathVariable Long id) {
         memberService.deleteMember(id);
         return ResponseEntity.noContent().build();

@@ -23,4 +23,6 @@ public interface LoanApplicationRepository extends JpaRepository<Loan, Long> {
 
     List<Loan> findByMember_Group_IdAndStatusAndDisbursementDateBefore(Long groupId, LoanStatus status, LocalDate date);
 
+    @Query("SELECT l FROM Loan l JOIN FETCH l.member m JOIN FETCH m.group WHERE l.id = :id")
+    Optional<Loan> findByIdWithMemberAndGroup(Long id);
 }

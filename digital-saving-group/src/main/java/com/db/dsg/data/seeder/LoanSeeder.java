@@ -3,11 +3,12 @@ package com.db.dsg.data.seeder;
 import com.db.dsg.dtos.LoanDto;
 import com.db.dsg.dtos.LoanRequestDto;
 import com.db.dsg.model.Loan;
+import com.db.dsg.model.LoanStatus;
 import com.db.dsg.model.MemberUser;
 import com.db.dsg.repository.LoanApplicationRepository;
 import com.db.dsg.repository.MemberUserRepository;
 import com.db.dsg.service.impl.LoanApplicationService;
-import jakarta.annotation.PostConstruct;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -27,8 +28,9 @@ public class LoanSeeder {
     private final LoanApplicationRepository loanRepo;
 
 
+    @Transactional
     public void seedLoans() {
-        log.info("📦 Seeding loans for multiple members...");
+        log.info("📦 Seeding loans for all status types...");
 
         MemberUser president = getUserByRole("president1", "PRESIDENT");
         MemberUser treasurer = getUserByRole("treasurer1", "TREASURER");
@@ -80,7 +82,7 @@ public class LoanSeeder {
                     BigDecimal.valueOf(18000)
             );
             loanService.approveLoan(disbursed.getId(), president);
-            loanService.requestDisbursement(disbursed.getId(), memberUser); // NEW
+            loanService.requestDisbursement(disbursed.getId(), memberUser);
             loanService.disburseLoan(disbursed.getId(), treasurer);
             updateDueDate(disbursed.getId(), LocalDate.now().plusDays(20));
 
@@ -94,12 +96,38 @@ public class LoanSeeder {
                     BigDecimal.valueOf(18000)
             );
             loanService.approveLoan(overdue.getId(), president);
-            loanService.requestDisbursement(overdue.getId(), memberUser); // NEW
+            loanService.requestDisbursement(overdue.getId(), memberUser);
             loanService.disburseLoan(overdue.getId(), treasurer);
             updateDueDate(overdue.getId(), LocalDate.now().minusDays(30));
+
+            // REPAID
+            var repaid = createLoan(
+                    memberUser,
+                    "Livestock Purchase",
+                    "Goats for dairy business",
+                    BigDecimal.valueOf(2500),
+                    5,
+                    BigDecimal.valueOf(15000)
+            );
+            loanService.approveLoan(repaid.getId(), president);
+            loanService.requestDisbursement(repaid.getId(), memberUser);
+            loanService.disburseLoan(repaid.getId(), treasurer);
+            updateDueDate(repaid.getId(), LocalDate.now().minusDays(60));
+            markRepaid(repaid.getId());
+
+            // CANCELLED
+            var cancelled = createLoan(
+                    memberUser,
+                    "Shop Inventory",
+                    "Stock new products",
+                    BigDecimal.valueOf(1800),
+                    6,
+                    BigDecimal.valueOf(12000)
+            );
+            loanService.cancelLoan(cancelled.getId(), memberUser);
         }
 
-        log.info("✅ Loans seeded successfully with due dates and various statuses.");
+        log.info("✅ Loans seeded successfully with all status variations.");
     }
 
     private MemberUser getUserByRole(String username, String roleName) {
@@ -113,6 +141,13 @@ public class LoanSeeder {
         Loan loan = loanRepo.findById(loanId)
                 .orElseThrow(() -> new RuntimeException("Loan not found: " + loanId));
         loan.setRepaymentDate(dueDate);
+        loanRepo.save(loan);
+    }
+
+    private void markRepaid(Long loanId) {
+        Loan loan = loanRepo.findById(loanId)
+                .orElseThrow(() -> new RuntimeException("Loan not found: " + loanId));
+        loan.setStatus(LoanStatus.REPAID);
         loanRepo.save(loan);
     }
 

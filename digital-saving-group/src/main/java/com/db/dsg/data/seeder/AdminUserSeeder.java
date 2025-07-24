@@ -8,7 +8,6 @@ import com.db.dsg.repository.GroupRepository;
 import com.db.dsg.repository.MemberRepository;
 import com.db.dsg.repository.MemberUserRepository;
 import com.db.dsg.repository.RoleRepository;
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;

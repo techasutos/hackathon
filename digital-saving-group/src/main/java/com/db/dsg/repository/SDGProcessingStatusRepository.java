@@ -11,4 +11,6 @@ public interface SDGProcessingStatusRepository extends JpaRepository<SDGProcessi
     Optional<SDGProcessingStatus> findByReferenceIdAndEntityType(Long referenceId, SDGProcessingStatus.EntityType type);
 
     List<SDGProcessingStatus> findByEntityTypeAndProcessedFalse(SDGProcessingStatus.EntityType type);
+
+    boolean existsByReferenceIdAndEntityType(Long id, SDGProcessingStatus.EntityType entityType);
 }

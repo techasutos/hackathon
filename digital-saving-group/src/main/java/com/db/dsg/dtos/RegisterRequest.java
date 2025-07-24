@@ -1,7 +1,6 @@
 package com.db.dsg.dtos;
 
 import com.db.dsg.model.Member;
-import com.db.dsg.model.Role;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

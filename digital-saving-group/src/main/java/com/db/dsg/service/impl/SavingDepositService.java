@@ -4,11 +4,13 @@ import com.db.dsg.dtos.MemberDepositHistoryResponse;
 import com.db.dsg.dtos.SavingDepositDto;
 import com.db.dsg.dtos.SavingDepositRequest;
 import com.db.dsg.dtos.SavingSummaryResponse;
+import com.db.dsg.event.DepositCreatedEvent;
 import com.db.dsg.model.Member;
 import com.db.dsg.model.SavingDeposit;
 import com.db.dsg.repository.MemberRepository;
 import com.db.dsg.repository.SavingDepositRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -24,6 +26,8 @@ public class SavingDepositService {
     private final SavingDepositRepository savingDepositRepo;
     private final MemberRepository memberRepo;
 
+    private final ApplicationEventPublisher eventPublisher;
+
     public SavingDepositDto save(SavingDepositRequest req, Member member) {
         SavingDeposit deposit = new SavingDeposit();
         deposit.setAmount(req.getAmount());
@@ -31,6 +35,7 @@ public class SavingDepositService {
         deposit.setMember(member);
 
         SavingDeposit saved = savingDepositRepo.save(deposit);
+        eventPublisher.publishEvent(new DepositCreatedEvent(this, saved));
         return mapToDto(saved);
     }
 

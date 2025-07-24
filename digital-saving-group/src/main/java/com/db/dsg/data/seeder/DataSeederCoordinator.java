@@ -26,6 +26,7 @@ public class DataSeederCoordinator {
     private final MemberUserRepository memberUserRepository;
     private final GroupFundSeeder groupFundSeeder;
     private final LoanSeeder loanSeeder;
+    private final SDGImpactSeeder sDGImpactSeeder;
 
 
     @PostConstruct
@@ -43,6 +44,7 @@ public class DataSeederCoordinator {
 
         groupFundSeeder.seedFundForGroup("Sunrise SHG", new BigDecimal("200000"));
         loanSeeder.seedLoans();
+        sDGImpactSeeder.seedSDGImpacts();
         System.out.println("✅ All seeders executed.");
     }
 

@@ -4,7 +4,6 @@ import com.db.dsg.model.Group;
 import com.db.dsg.model.GroupFund;
 import com.db.dsg.repository.GroupFundRepository;
 import com.db.dsg.repository.GroupRepository;
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 

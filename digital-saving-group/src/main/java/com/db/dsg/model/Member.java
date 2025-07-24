@@ -1,10 +1,7 @@
 package com.db.dsg.model;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDate;
 
@@ -13,40 +10,41 @@ import java.time.LocalDate;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
+@ToString(onlyExplicitlyIncluded = true)
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Member {
     @Id
     @GeneratedValue
+    @EqualsAndHashCode.Include
     private Long id;
 
     private String name;
-
     private String phone;
-
     private String email;
 
     @Enumerated(EnumType.STRING)
     private Gender gender;
 
     private String aadhaar;
-
     private boolean ekycVerified;
-
     private LocalDate dateOfBirth;
-
     private boolean approved = false;
 
-    @OneToOne(mappedBy = "member", cascade = CascadeType.ALL)
+    @OneToOne(mappedBy = "member", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private MemberUser user;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "group_id", nullable = false)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private Group group;
 
-    // Optional derived role name for display only
     @Transient
     public String getDisplayRole() {
         if (user != null && user.getRoles() != null && !user.getRoles().isEmpty()) {
-            return user.getRoles().iterator().next().getName(); // or prioritize by logic
+            return user.getRoles().iterator().next().getName();
         }
         return "MEMBER";
     }

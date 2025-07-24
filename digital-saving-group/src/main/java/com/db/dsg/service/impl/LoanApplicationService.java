@@ -3,12 +3,14 @@ package com.db.dsg.service.impl;
 import com.db.dsg.dtos.LoanAuditLogDto;
 import com.db.dsg.dtos.LoanDto;
 import com.db.dsg.dtos.LoanRequestDto;
+import com.db.dsg.event.LoanCreatedEvent;
 import com.db.dsg.model.*;
 import com.db.dsg.repository.LoanApplicationRepository;
 import com.db.dsg.repository.LoanAuditLogRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
@@ -27,6 +29,9 @@ public class LoanApplicationService {
     private final GroupFundService groupFundService;
     private final ModelMapper mapper;
 
+    private final ApplicationEventPublisher eventPublisher;
+
+    @Transactional
     public LoanDto applyLoan(Member member, LoanRequestDto request) {
         Loan loan = Loan.builder()
                 .member(member)
@@ -132,7 +137,9 @@ public class LoanApplicationService {
         loan.setRemainingBalance(amount);
 
         Loan updated = loanRepo.save(loan);
-
+        Loan loanPrefetched = loanRepo.findByIdWithMemberAndGroup(updated.getId())
+                .orElseThrow();
+        eventPublisher.publishEvent(createLoanCreatedEvent(loanPrefetched));
         auditLogRepo.save(
                 LoanAuditLog.builder()
                         .loan(updated)
@@ -144,6 +151,21 @@ public class LoanApplicationService {
         );
 
         return toDto(updated);
+    }
+
+    private LoanCreatedEvent createLoanCreatedEvent(Loan loanPrefetched) {
+
+        LoanCreatedEvent event = new LoanCreatedEvent(
+                loanPrefetched.getId(),
+                loanPrefetched.getPurpose(),
+                loanPrefetched.getPurposeDescription(),
+                loanPrefetched.getApplicationDate(),
+                loanPrefetched.getMember().getGroup().getId(),
+                loanPrefetched.getMember().getGender().name(),
+                loanPrefetched.getMember().getName(),
+                loanPrefetched.getMember().getGroup().getName()
+        );
+        return event;
     }
 
     @Transactional

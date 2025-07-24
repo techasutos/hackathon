@@ -5,7 +5,6 @@ import com.db.dsg.dtos.SavingDepositDto;
 import com.db.dsg.dtos.SavingDepositRequest;
 import com.db.dsg.dtos.SavingSummaryResponse;
 import com.db.dsg.model.Member;
-import com.db.dsg.model.SavingDeposit;
 import com.db.dsg.service.impl.SavingDepositService;
 import com.db.dsg.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;

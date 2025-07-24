@@ -1,10 +1,7 @@
 package com.db.dsg.model;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -21,8 +18,9 @@ public class Loan {
     private Long id;
 
     // 👤 The member who applied for the loan
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "member_id", nullable = false)
+    @ToString.Exclude
     private Member member;
 
     // 💰 Loan amount approved
