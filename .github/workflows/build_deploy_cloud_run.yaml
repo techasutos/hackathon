@@ -1,0 +1,86 @@
+name: Build & Deploy Spring Boot to Cloud Run
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    env:
+      PROJECT_ID: hack-team-assertserviceunit
+      REGION: us-central1
+      SERVICE_NAME: github-cloud-run-service
+      REPOSITORY: backend-image
+      IMAGE_NAME: backend
+      WORKLOAD_SA_EMAIL: workload@hack-team-assertserviceunit.iam.gserviceaccount.com
+      INFRASTRUCTURE_SA_EMAIL: infrastructure@hack-team-assertserviceunit.iam.gserviceaccount.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP (build)
+        uses: google-github-actions/auth@v2
+        with:
+          export_environment_variables: true
+          project_id: ${{ env.PROJECT_ID }}
+          workload_identity_provider: projects/785558430619/locations/global/workloadIdentityPools/github-2023/providers/github-2023
+          service_account: ${{ env.WORKLOAD_SA_EMAIL }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install Java & Maven
+        uses: actions/setup-java@v3
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Build Spring Boot JAR
+        working-directory: digital-saving-group
+        run: mvn clean package -DskipTests
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+      - name: Generate Dockerfile
+        working-directory: digital-saving-group
+        run: |
+          cat <<EOF > Dockerfile
+          FROM eclipse-temurin:17-jdk
+          ARG JAR_FILE=target/*.jar
+          COPY \${JAR_FILE} app.jar
+          EXPOSE 8383
+          ENTRYPOINT ["java", "-jar", "app.jar"]
+          EOF
+
+      - name: Build Docker image
+        working-directory: digital-saving-group
+        run: |
+          docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:latest .
+
+      - name: Push Docker image to Artifact Registry
+        run: |
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:latest
+
+      - name: Authenticate to GCP (deploy)
+        uses: google-github-actions/auth@v2
+        with:
+          export_environment_variables: true
+          project_id: ${{ env.PROJECT_ID }}
+          workload_identity_provider: projects/785558430619/locations/global/workloadIdentityPools/github-2023/providers/github-2023
+          service_account: ${{ env.INFRASTRUCTURE_SA_EMAIL }}
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --region ${{ env.REGION }} \
+            --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:latest \
+            --service-account=${{ env.WORKLOAD_SA_EMAIL }} \
+            --platform managed \
+            --allow-unauthenticated
